@@ -1,80 +1,58 @@
-import React, { useState, useEffect, useCallback } from 'react';
-
-import MoviesList from './components/MoviesList';
-import AddMovie from './components/AddMovie';
-import './App.css';
+import { useDispatch, useSelector } from 'react-redux';
+import Cart from './components/Cart/Cart';
+import Layout from './components/Layout/Layout';
+import Products from './components/Shop/Products';
+import { useEffect } from 'react';
+import { uiActions } from './store/UiSlice';
+import { Fragment } from 'react';
+import Notification from './components/UI/Notification';
 
 function App() {
-  const [movies, setMovies] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const fetchMoviesHandler = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await fetch('https://react-hhtp-f5e96-default-rtdb.firebaseio.com/movies.json');
-      if (!response.ok) {
-        throw new Error('Something went wrong!');
-      }
-
-      const data = await response.json();
-      const loadedMovies=[]
-      for (const key in data){
-        loadedMovies.push({
-          id:key,
-          title:data[key].title,
-          openingText:data[key].openingText          ,
-          releaseDate:data[key].releaseDate,
-        })
-      }
-      setMovies(loadedMovies);
-    } catch (error) {
-      setError(error.message);
-    }
-    setIsLoading(false);
-  }, []);
-
+  const ui = useSelector(state => state.ui.cartIsVisible)
+  const cart = useSelector(state => state.cart)
+  const notification = useSelector(state => state.ui.notification)
+  const dispatch = useDispatch()
   useEffect(() => {
-    fetchMoviesHandler();
-  }, [fetchMoviesHandler]);
-
-  async function addMovieHandler(movie) {
-    const response = await fetch('https://react-hhtp-f5e96-default-rtdb.firebaseio.com/movies.json',{
-      method:'POST',
-      body:JSON.stringify(movie),
-      headers:{
-        'Content-Type':'application/json'
+    const sendcartData = async () => {
+      dispatch(uiActions.showNotification({
+        status: 'pending',
+        title: 'Sending.....',
+        message: 'Sending cart data!'
+      }))
+      const response = await fetch('https://react-hhtp-f5e96-default-rtdb.firebaseio.com/cart.json', {
+        method: 'PUT',
+        body: JSON.stringify(cart)
+      });
+      const responseDta = await response.json()
+      if (responseDta.ok) {
+        throw new Error('Sending Cart data failed.')
       }
+      dispatch(uiActions.showNotification({
+        status: 'success',
+        title: 'Success !',
+        message: 'Sent cart data successfully!'
+      }))
+    }
+    sendcartData().catch(err => {
+      dispatch(uiActions.showNotification({
+        status: 'error',
+        title: 'Error !',
+        message: 'Sending cart data Failed!'
+      }))
     })
-    const data=await response.json()
-    console.log(data);
-  }
-
-  let content = <p>Found no movies.</p>;
-
-  if (movies.length > 0) {
-    content = <MoviesList movies={movies} />;
-  }
-
-  if (error) {
-    content = <p>{error}</p>;
-  }
-
-  if (isLoading) {
-    content = <p>Loading...</p>;
-  }
-
+  }, [cart])
   return (
-    <React.Fragment>
-      <section>
-        <AddMovie onAddMovie={addMovieHandler} />
-      </section>
-      <section>
-        <button onClick={fetchMoviesHandler}>Fetch Movies</button>
-      </section>
-      <section>{content}</section>
-    </React.Fragment>
+    <Fragment>
+    {/* <Notification
+      status={notification.status}
+      title={notification.title}
+      message={notification.message}
+    /> */}
+      <Layout>
+        {ui && <Cart />}
+        <Products />
+      </Layout>
+    </Fragment>
   );
 }
 
